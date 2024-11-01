@@ -1,2 +1,2 @@
 # .gitignore files that will not be tracked by git
-.env
+# .env
