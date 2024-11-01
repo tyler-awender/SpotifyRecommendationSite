@@ -1,15 +1,17 @@
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import os
 import base64
 import json
 from requests import post, get # to allow for post requests
 
 # load environment variables
-load_dotenv() 
+# load_dotenv() 
 
 # store client_id and client_secret from env file
-client_id = os.getenv("CLIENT_ID")
-client_secret = os.getenv("CLIENT_SECRET")
+# client_id = os.getenv("CLIENT_ID")
+# client_secret = os.getenv("CLIENT_SECRET")
+client_id = "f4968da54d444c79b4f9296ba647de85"
+client_secret = "755f3f594b074d1fb6a7cf8758fd0646"
 
 # sends authorization request for access token
 def get_token():
