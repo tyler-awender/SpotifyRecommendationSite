@@ -1,6 +1,13 @@
 from flask import Flask, render_template, send_from_directory
 
+from spotipy import spotify
+
 app = Flask(__name__)
+
+scope = "playlist-read-private"
+
+#spotipy setup
+
 
 # default page
 @app.route("/") 
