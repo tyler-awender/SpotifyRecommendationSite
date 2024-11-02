@@ -55,7 +55,11 @@ def search_for_artist(token, artist_name):
     json_result = json.loads(result.content)
     print(json_result)
 '''
-
+# ISSUE FOUND: NEED TO SETUP USER
+# LOGIN TO GET THE USER'S TOKEN
+# CLIENT CREDENTIALS DO NOT HAVE 
+# REQUIRED PRIVILEGES/CANT FIND USER
+# TRACKS THAT HAVE RECENTLY BEEN PLAYED
 def get_last_played_tracks(token):
     url = "https://api.spotify.com/v1/me/player/recently-played"
     headers = get_auth_header(token)
