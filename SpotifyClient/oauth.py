@@ -4,6 +4,8 @@ import base64
 import json
 from requests import post, get # to allow for post requests
 
+from Track import Track
+from Playlist import Playlist
 # load environment variables
 # load_dotenv() 
 
@@ -41,6 +43,8 @@ def get_auth_header(token):
     return{"Authorization": "Bearer " + token}
 
 # test function to see if token and API request works
+
+'''
 def search_for_artist(token, artist_name):
     url = "https://api.spotify.com/v1/search"
     headers = get_auth_header(token)
@@ -50,6 +54,37 @@ def search_for_artist(token, artist_name):
     result = get(query_url, headers=headers)
     json_result = json.loads(result.content)
     print(json_result)
+'''
+
+def get_last_played_tracks(token):
+    url = "https://api.spotify.com/v1/me/player/recently-played"
+    headers = get_auth_header(token)
+
+
+    result = get(url, headers=headers)
+
+        # Check for a successful response
+    if result.status_code != 200:
+        print(f"Error: {result.status_code}, {result.json()}")
+        return []
+
+    response_json = result.json()
+
+    # Handle missing 'items' key
+    if "items" not in response_json:
+        print("No recently played tracks found.")
+        return []
+    
+    response_json = result.json()
+    tracks = [Track(track["track"]["name"], 
+                    track["track"]["id"], 
+                    track["track"]["artists"][0]["name"]) 
+                    for track in response_json["items"]
+            ]
+    return tracks
+
 
 token = get_token()
-search_for_artist(token, "Common Kings")
+get_last_played_tracks(token)
+# for testing token 
+# search_for_artist(token, "Common Kings")
