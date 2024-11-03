@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, send_from_directory, session
+from flask import Flask, render_template, send_from_directory, session, redirect, url_for, request
 
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
@@ -26,16 +26,45 @@ sp_oauth = SpotifyOAuth(
 )
 sp = Spotify(auth_manager=sp_oauth)
 
-
-
 # default page
 @app.route("/") 
 def home():
-    return render_template("home.html")
+    print("home")
+    if not sp_oauth.validate_token(cache_handler.get_cached_token()):
+        auth_url = sp_oauth.get_authorize_url()
+        return redirect(auth_url)
+    return redirect(url_for('get_playlists'))
 
-@app.route("/about")
-def about():
-    return render_template("about.html")
+@app.route('/callback')
+def callback():
+    sp_oauth.get_access_token(request.args['code'])
+    return redirect(url_for('get_playlists'))
+
+@app.route('/get_playlists')
+def get_playlists():
+    if not sp_oauth.validate_token(cache_handler.get_cached_token()):
+        auth_url = sp_oauth.get_authorize_url()
+        return redirect(auth_url)
+
+    playlists = sp.current_user_playlists()
+    playlists_info = [(pl['name'], pl['external_urls']['spotify']) for pl in playlists['items']]
+    playlists_html = '<br>'.join([f'{name}: {url}' for name, url in playlists_info])
+
+    return playlists_html
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# @app.route("/") 
+# def home():
+#     return redirect(url_for('get_playlists'))
+
+# @app.route("/about")
+# def about():
+#     return render_template("about.html")
+
