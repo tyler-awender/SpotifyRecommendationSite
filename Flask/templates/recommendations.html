@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Recommendations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .container {
+            background-color: #282828;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .recommendations {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .track-card {
+            background-color: #181818;
+            padding: 15px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .track-card:hover {
+            background-color: #282828;
+        }
+        .track-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .track-artists {
+            color: #b3b3b3;
+            margin-bottom: 10px;
+        }
+        .track-features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #b3b3b3;
+        }
+        select, button {
+            background-color: #1db954;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        select {
+            background-color: #333333;
+            width: 300px;
+        }
+        button:hover {
+            background-color: #1ed760;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spotify Recommendations</h1>
+        
+        <div>
+            <select id="recommendationSource">
+                <option value="top_tracks">Based on Your Top Tracks</option>
+                <option value="playlist">Based on a Playlist</option>
+            </select>
+            
+            <select id="playlistSelect" style="display: none;">
+                {% for playlist in playlists %}
+                <option value="{{ playlist.id }}">{{ playlist.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <button onclick="getRecommendations()">Get Recommendations</button>
+        </div>
+        
+        <div id="loading" class="loading">Loading recommendations...</div>
+        <div id="recommendations" class="recommendations"></div>
+    </div>
+
+    <script>
+        document.getElementById('recommendationSource').addEventListener('change', function() {
+            const playlistSelect = document.getElementById('playlistSelect');
+            playlistSelect.style.display = this.value === 'playlist' ? 'inline-block' : 'none';
+        });
+
+        function getRecommendations() {
+            const loading = document.getElementById('loading');
+            const recommendationsDiv = document.getElementById('recommendations');
+            const source = document.getElementById('recommendationSource').value;
+            const playlistId = document.getElementById('playlistSelect').value;
+            
+            loading.style.display = 'block';
+            recommendationsDiv.innerHTML = '';
+            
+            const formData = new FormData();
+            formData.append('source', source);
+            if (source === 'playlist') {
+                formData.append('playlist_id', playlistId);
+            }
+            
+            fetch('/get_recommendations', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                data.recommendations.forEach(track => {
+                    const trackCard = document.createElement('div');
+                    trackCard.className = 'track-card';
+                    trackCard.innerHTML = `
+                        <div class="track-title">${track.name}</div>
+                        <div class="track-artists">${track.artists.join(', ')}</div>
+                        <a href="${track.spotify_url}" target="_blank">Open in Spotify</a>
+                        <div class="track-features">
+                            <div>Popularity: ${track.popularity}%</div>
+                            <div>Energy: ${Math.round(track.energy * 100)}%</div>
+                            <div>Danceability: ${Math.round(track.danceability * 100)}%</div>
+                            <div>Tempo: ${Math.round(track.tempo)} BPM</div>
+                        </div>
+                    `;
+                    recommendationsDiv.appendChild(trackCard);
+                });
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alert('Error getting recommendations');
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
