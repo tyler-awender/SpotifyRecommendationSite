@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Playlist</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .container {
+            background-color: #282828;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .playlist {
+            margin-top: 20px;
+        }
+        .track-card {
+            background-color: #181818;
+            padding: 15px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        .track-card:hover {
+            background-color: #282828;
+        }
+        .track-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .track-artists {
+            color: #b3b3b3;
+            margin-bottom: 10px;
+        }
+        a {
+            color: #1db954;
+            text-decoration: none;
+        }
+        a:hover {
+            color: #1ed760;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ playlist.name }}</h1>
+        <p>Created by: {{ playlist.owner.display_name }}</p>
+        <p><a href="{{ playlist.external_urls.spotify }}" target="_blank">Open in Spotify</a></p>
+        
+        <div class="playlist">
+            {% for item in tracks %}
+            <div class="track-card">
+                <div class="track-title">{{ item.track.name }}</div>
+                <div class="track-artists">{{ item.track.artists[0].name }}</div>
+                <a href="{{ item.track.external_urls.spotify }}" target="_blank">Open in Spotify</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <a href="{{ url_for('recommendation_page') }}">Back to Recommendations</a>
+    </div>
+</body>
+</html>

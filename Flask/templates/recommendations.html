@@ -92,6 +92,14 @@
             <button onclick="getRecommendations()">Get Recommendations</button>
         </div>
         
+        <!-- Add a form to create a playlist with the recommended tracks --> 
+         <form action="{{ url_for('create_playlist') }}" method="POST"> 
+            <input type="hidden" name="playlist_name" value="My Recommended Playlist"> 
+            <div id="hiddenTrackInputs">
+            </div> <!-- Placeholder for hidden inputs --> 
+            <button type="submit">Create Playlist</button> 
+        </form>
+
         <div id="loading" class="loading">Loading recommendations...</div>
         <div id="recommendations" class="recommendations"></div>
     </div>
@@ -144,6 +152,18 @@
                         </div>
                     `;
                     recommendationsDiv.appendChild(trackCard);
+
+                // Only add hidden input if URI exists
+                if (track.uri) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'track_uris[]'; // Array notation for multiple URIs
+                    hiddenInput.value = track.uri;    // Set the URI value here
+                    document.getElementById('hiddenTrackInputs').appendChild(hiddenInput);  // Append to the correct div
+                } 
+                else {
+                    console.error('Track URI is missing for:', track);
+                }
                 });
             })
             .catch(error => {
