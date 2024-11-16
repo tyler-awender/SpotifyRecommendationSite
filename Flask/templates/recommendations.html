@@ -141,6 +141,7 @@
                     const trackCard = document.createElement('div');
                     trackCard.className = 'track-card';
                     trackCard.innerHTML = `
+                        <img src= "${track.album_cover}" alt="${track.name} cover" style="width: 100%; height: auto, border-radius: 8xp;">
                         <div class="track-title">${track.name}</div>
                         <div class="track-artists">${track.artists.join(', ')}</div>
                         <a href="${track.spotify_url}" target="_blank">Open in Spotify</a>

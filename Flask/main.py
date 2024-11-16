@@ -58,7 +58,8 @@ def get_recommendations(seed_tracks, limit=10):
                 'uri': track['uri'],  # Include the track URI
                 'energy': features['energy'] if features else None,
                 'danceability': features['danceability'] if features else None,
-                'tempo': features['tempo'] if features else None
+                'tempo': features['tempo'] if features else None,
+                'album_cover': track['album']['images'][0]['url']  # Add album cover to recommendations
             })
         
         return enhanced_recommendations
