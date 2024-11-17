@@ -17,7 +17,23 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
+
+        .playlist-card {
+            background-color: #181818;
+            padding: 20px;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: #ffffff;
+            display: block;
+            width: 100%;
+            margin-bottom: 20px;
+        }
         .playlist {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
             margin-top: 20px;
         }
         .track-card {
@@ -25,10 +41,19 @@
             padding: 15px;
             border-radius: 4px;
             transition: background-color 0.3s;
-            margin-bottom: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            color: #ffffff;
+            display: block;
         }
-        .track-card:hover {
+        .track-card:hover, .playlist-card:hover {
             background-color: #282828;
+        }
+        .track-cover {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
         .track-title {
             font-size: 1.1em;
@@ -46,25 +71,54 @@
         a:hover {
             color: #1ed760;
         }
+        .playlist-cover-wrapper {
+            display: block;
+            margin: 0 auto;
+            max-width: 400px;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .playlist-cover {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>{{ playlist.name }}</h1>
-        <p>Created by: {{ playlist.owner.display_name }}</p>
-        <p><a href="{{ playlist.external_urls.spotify }}" target="_blank">Open in Spotify</a></p>
-        
+        <!-- <p>Created by: {{ playlist.owner.display_name }}</p> -->
+        <div class="playlist-cover-wrapper">
+            <a href="{{ playlist.external_urls.spotify }}" target="_blank" class="playlist-card">
+                <!-- Display the playlist cover if available -->
+                {% if playlist_cover %}
+                <img src="{{ playlist_cover }}" alt="Playlist Cover" class="playlist-cover">
+                {% else %}
+                    <p>No cover image available</p>
+                {% endif %}
+                <h1>{{ playlist.name }}</h1>
+            </a>
+        </div>
+
+
         <div class="playlist">
             {% for item in tracks %}
-            <div class="track-card">
+            <a href="{{ item.track.external_urls.spotify }}" target="_blank" class="track-card">
+                <img src="{{ item.track.album.images[0].url }}" alt="{{ item.track.name }}" class="track-cover">
+                
                 <div class="track-title">{{ item.track.name }}</div>
                 <div class="track-artists">{{ item.track.artists[0].name }}</div>
-                <a href="{{ item.track.external_urls.spotify }}" target="_blank">Open in Spotify</a>
-            </div>
+                <div class="track-embed">
+                    <iframe src="https://open.spotify.com/embed/track/{{ item.track.id }}" width="100%" height="80" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                </div>
+            </a>
             {% endfor %}
         </div>
 
         <a href="{{ url_for('recommendation_page') }}">Back to Recommendations</a>
     </div>
+</div>
 </body>
 </html>

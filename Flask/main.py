@@ -58,7 +58,8 @@ def get_recommendations(seed_tracks, limit=10):
                 'uri': track['uri'],  # Include the track URI
                 'energy': features['energy'] if features else None,
                 'danceability': features['danceability'] if features else None,
-                'tempo': features['tempo'] if features else None
+                'tempo': features['tempo'] if features else None,
+                'album_cover': track['album']['images'][0]['url']  # Add album cover to recommendations
             })
         
         return enhanced_recommendations
@@ -154,10 +155,17 @@ def create_playlist():
             # add recommended tracks to new playlist
             sp.playlist_add_items(playlist['id'], track_uris, position=None)
 
+        
+        # retrieve playlist cover
+        cover = sp.playlist_cover_image(playlist['id'])
+
+        # grab the 640x640 cover image
+        playlist_cover_url = cover[0]['url'] if cover else None
         return render_template(
             'playlist.html',
             playlist = playlist,
-            tracks = sp.playlist_tracks(playlist['id'])['items']
+            tracks = sp.playlist_tracks(playlist['id'])['items'],
+            playlist_cover = playlist_cover_url       # pass cover to playlist.html
         )
 
     except Exception as e:
