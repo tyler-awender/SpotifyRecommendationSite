@@ -1,178 +1,113 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Spotify Recommendations</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #121212;
-            color: #ffffff;
-        }
-        .container {
-            background-color: #282828;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .recommendations {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .track-card {
-            background-color: #181818;
-            padding: 15px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-        .track-card:hover {
-            background-color: #282828;
-        }
-        .track-title {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .track-artists {
-            color: #b3b3b3;
-            margin-bottom: 10px;
-        }
-        .track-features {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-            font-size: 0.9em;
-            color: #b3b3b3;
-        }
-        select, button {
-            background-color: #1db954;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 10px 0;
-        }
-        select {
-            background-color: #333333;
-            width: 300px;
-        }
-        button:hover {
-            background-color: #1ed760;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Discovery</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="container">
-        <h1>Spotify Recommendations</h1>
-        
-        <div>
-            <select id="recommendationSource">
-                <option value="top_tracks">Based on Your Top Tracks</option>
-                <option value="playlist">Based on a Playlist</option>
-            </select>
-            
-            <select id="playlistSelect" style="display: none;">
-                {% for playlist in playlists %}
-                <option value="{{ playlist.id }}">{{ playlist.name }}</option>
-                {% endfor %}
-            </select>
-            
-            <button onclick="getRecommendations()">Get Recommendations</button>
-        </div>
-        
-        <!-- Add a form to create a playlist with the recommended tracks --> 
-         <form action="{{ url_for('create_playlist') }}" method="POST"> 
-            <input type="hidden" name="playlist_name" value="My Recommended Playlist"> 
-            <div id="hiddenTrackInputs">
-            </div> <!-- Placeholder for hidden inputs --> 
-            <button type="submit">Create Playlist</button> 
-        </form>
+<body class="bg-gradient-to-br from-gray-900 to-black min-h-screen">
+    <div class="container mx-auto px-4 py-16">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-5xl font-bold text-red-500 mb-4">New Artist Discovery</h1>
+            <p class="text-gray-300 text-xl">Find a similar artist</p>
+        </header>
 
-        <div id="loading" class="loading">Loading recommendations...</div>
-        <div id="recommendations" class="recommendations"></div>
+        <!-- Search Section -->
+        <div class="max-w-2xl mx-auto bg-gray-800 rounded-lg p-8 shadow-2xl">
+            <form id="searchForm" class="space-y-6">
+                <div>
+                    <label for="artist" class="block text-gray-300 text-lg mb-2">Enter an artist:</label>
+                    <input 
+                        type="text" 
+                        id="artist" 
+                        name="artist" 
+                        class="w-full p-4 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        placeholder="e.g., The Beatles"
+                        required
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    class="w-full py-4 px-6 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition duration-200"
+                >
+                    Discover Similar Artists
+                </button>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Results will be populated here via JavaScript -->
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden">
+            <div class="flex justify-center items-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        document.getElementById('recommendationSource').addEventListener('change', function() {
-            const playlistSelect = document.getElementById('playlistSelect');
-            playlistSelect.style.display = this.value === 'playlist' ? 'inline-block' : 'none';
-        });
-
-        function getRecommendations() {
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const artist = document.getElementById('artist').value;
             const loading = document.getElementById('loading');
-            const recommendationsDiv = document.getElementById('recommendations');
-            const source = document.getElementById('recommendationSource').value;
-            const playlistId = document.getElementById('playlistSelect').value;
-            
-            loading.style.display = 'block';
-            recommendationsDiv.innerHTML = '';
-            
-            const formData = new FormData();
-            formData.append('source', source);
-            if (source === 'playlist') {
-                formData.append('playlist_id', playlistId);
-            }
-            
-            fetch('/get_recommendations', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                loading.style.display = 'none';
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-                
-                data.recommendations.forEach(track => {
-                    const trackCard = document.createElement('div');
-                    trackCard.className = 'track-card';
-                    trackCard.innerHTML = `
-                        <img src= "${track.album_cover}" alt="${track.name} cover" style="width: 100%; height: auto, border-radius: 8xp;">
-                        <div class="track-title">${track.name}</div>
-                        <div class="track-artists">${track.artists.join(', ')}</div>
-                        <a href="${track.spotify_url}" target="_blank">Open in Spotify</a>
-                        <div class="track-features">
-                            <div>Popularity: ${track.popularity}%</div>
-                            <div>Energy: ${Math.round(track.energy * 100)}%</div>
-                            <div>Danceability: ${Math.round(track.danceability * 100)}%</div>
-                            <div>Tempo: ${Math.round(track.tempo)} BPM</div>
-                        </div>
-                    `;
-                    recommendationsDiv.appendChild(trackCard);
+            const results = document.getElementById('results');
 
-                // Only add hidden input if URI exists
-                if (track.uri) {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = 'track_uris[]'; // Array notation for multiple URIs
-                    hiddenInput.value = track.uri;    // Set the URI value here
-                    document.getElementById('hiddenTrackInputs').appendChild(hiddenInput);  // Append to the correct div
-                } 
-                else {
-                    console.error('Track URI is missing for:', track);
-                }
+            // Show loading indicator
+            loading.classList.remove('hidden');
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `artist=${encodeURIComponent(artist)}`
                 });
-            })
-            .catch(error => {
-                loading.style.display = 'none';
-                alert('Error getting recommendations');
-                console.error('Error:', error);
-            });
-        }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Create results cards
+                data.recommendations.forEach(rec => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-6 hover:shadow-xl transition duration-200';
+                    card.innerHTML = `
+                        <h3 class="text-xl font-bold text-white mb-2">${rec.artist_name}</h3>
+                        <p class="text-gray-400 mb-4">Top Track: ${rec.track_name}</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            ${rec.tags.map(tag => 
+                                `<span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm">${tag}</span>`
+                            ).join('')}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${rec.listeners.toLocaleString()} listeners
+                        </div>
+                        <a href="${rec.artist_url}" target="_blank" class="mt-4 inline-block text-red-500 hover:text-red-400">
+                            View on Last.fm →
+                        </a>
+                    `;
+                    results.appendChild(card);
+                });
+
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="col-span-full text-center text-red-500 py-8">
+                        Error: ${error.message || 'Failed to get recommendations'}
+                    </div>
+                `;
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 </html>

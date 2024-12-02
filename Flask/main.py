@@ -1,182 +1,102 @@
 import os
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
-from spotipy import Spotify
-from spotipy.oauth2 import SpotifyOAuth
-from spotipy.cache_handler import FlaskSessionCacheHandler
+import pylast
 import random
+from collections import Counter
 
-# initialize a Flask application
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(64)   # set a secret key for session management
+app.config['SECRET_KEY'] = os.urandom(64)
 
-# spotify API credentials
-client_id = 'f4968da54d444c79b4f9296ba647de85'
-client_secret = '755f3f594b074d1fb6a7cf8758fd0646'
-redirect_uri = 'http://localhost:5000/callback' # redirect URI for Spotify OAuth
+# Last.fm API credentials
+API_KEY = "9bb9084cd2af09289f944186b13734b4"
+API_SECRET = "83e5071630925615829ccef4be0a2d39"
 
-# Updated scope to include necessary permissions
-scope = "playlist-read-private user-top-read user-library-read playlist-modify-public playlist-modify-private"
-
-# initialize Spotify OAuth and cache handler
-cache_handler = FlaskSessionCacheHandler(session) # use Flask session for cache handling
-sp_oauth = SpotifyOAuth(
-    client_id=client_id,
-    client_secret=client_secret,
-    redirect_uri=redirect_uri,
-    scope=scope,
-    cache_handler=cache_handler,
-    show_dialog=True    # show dialog for user to re-authenticate if necessary 
+# Initialize Last.fm network
+network = pylast.LastFMNetwork(
+    api_key=API_KEY,
+    api_secret=API_SECRET
 )
 
-# initialize Spotify API client
-sp = Spotify(auth_manager=sp_oauth)
-
-def get_track_features(track_id):
-    """Get audio features for a track"""
-    return sp.audio_features([track_id])[0] # fetch audio features for the given track ID
-
-def get_recommendations(seed_tracks, limit=10):
-    """Get recommendations based on seed tracks"""
+def get_track_info(track, artist):
+    """Get additional information about a track"""
     try:
-        recommendations = sp.recommendations(
-            seed_tracks=seed_tracks[:5],  # Spotify allows max 5 seed tracks
-            limit=limit,                  # Limit number of recommendations to specified value (10)
-            min_popularity=20,            # Set minimum popularity for recommended tracks
-            target_popularity=60          # Set target popularity for recommended tracks
-        )
-        
-        # Enhance recommendations with additional track info
-        enhanced_recommendations = []
-        for track in recommendations['tracks']:
-            features = get_track_features(track['id'])  # get audio features for each recommended track
-            enhanced_recommendations.append({
-                'name': track['name'],
-                'artists': [artist['name'] for artist in track['artists']],
-                'spotify_url': track['external_urls']['spotify'],
-                'preview_url': track['preview_url'],
-                'popularity': track['popularity'],
-                'uri': track['uri'],  # Include the track URI
-                'energy': features['energy'] if features else None,
-                'danceability': features['danceability'] if features else None,
-                'tempo': features['tempo'] if features else None,
-                'album_cover': track['album']['images'][0]['url']  # Add album cover to recommendations
-            })
-        
-        return enhanced_recommendations
+        track_obj = network.get_track(artist, track)
+        return {
+            'name': track,
+            'artist': artist,
+            'url': track_obj.get_url(),
+            'listeners': track_obj.get_listener_count(),
+            'playcount': track_obj.get_playcount(),
+            'tags': [tag.item.name for tag in track_obj.get_top_tags(limit=5)]
+        }
     except Exception as e:
-        print(f"Error getting recommendations: {e}")    # print any errors that occur
-        return []                                       # return empty list if errors occur
+        print(f"Error getting track info: {e}")
+        return None
+
+def get_recommendations(artist_name, limit=10):
+    """Get recommendations based on an artist"""
+    try:
+        artist = network.get_artist(artist_name)
+        similar_artists = artist.get_similar(limit=limit)
+        
+        recommendations = []
+        for similar in similar_artists:
+            artist_obj = similar.item
+            try:
+                # Get the artist's top track
+                top_track = artist_obj.get_top_tracks(limit=1)[0].item
+                
+                recommendations.append({
+                    'artist_name': artist_obj.name,
+                    'artist_url': artist_obj.get_url(),
+                    'track_name': top_track.get_name(),
+                    'track_url': top_track.get_url(),
+                    'listeners': artist_obj.get_listener_count(),
+                    'tags': [tag.item.name for tag in artist_obj.get_top_tags(limit=3)]
+                })
+            except Exception as e:
+                print(f"Error processing artist {artist_obj.name}: {e}")
+                continue
+                
+        return recommendations
+    except Exception as e:
+        print(f"Error getting recommendations: {e}")
+        return []
 
 @app.route("/")
 def home():
-    # redirect to Spotify authorization page if not authenticated
-    if not sp_oauth.validate_token(cache_handler.get_cached_token()):
-        auth_url = sp_oauth.get_authorize_url() # generate authorization URL
-        return redirect(auth_url)               # redirect user to the authorization URL
-    return redirect(url_for('recommendation_page')) # redirect to the recommendation page
+    return render_template('recommendations.html')
 
-@app.route('/callback')
-def callback():
-    # handle the callback from Spotify authorization
-    sp_oauth.get_access_token(request.args['code']) # get access token from authorization code
-    return redirect(url_for('recommendation_page')) # redirect to recommendation page
-
-@app.route('/recommendation_page')
-def recommendation_page():
-    # redirect to Spotify authorization page if not authenticated
-    if not sp_oauth.validate_token(cache_handler.get_cached_token()):   
-        auth_url = sp_oauth.get_authorize_url() # generate authorization URL
-        return redirect(auth_url)               # redirect user to authorization URL
-    
-    # Get user's top tracks
-    top_tracks = sp.current_user_top_tracks(limit=20, time_range='medium_term')
-    
-    # Get user's playlists for the dropdown
-    playlists = sp.current_user_playlists()
-    
-    # render the recommendations page with top tracks and playlists
-    return render_template(
-        'recommendations.html',
-        top_tracks=top_tracks['items'],
-        playlists=playlists['items']
-    )
-
-@app.route('/get_recommendations', methods=['POST'])
-def get_recommendations_route():
-    # redirect to Spotify authorization page
-    if not sp_oauth.validate_token(cache_handler.get_cached_token()):
-        return jsonify({'error': 'Not authenticated'}), 401 # return an error if not authenticated
-    
-    # get source of seed tracks (top tracks or playlist)
-    source = request.form.get('source', 'top_tracks')   # default to 'top_tracks' if no source
-    playlist_id = request.form.get('playlist_id')       # get playlist ID from the form data
-    
+@app.route('/search', methods=['POST'])
+def search():
+    artist_name = request.form.get('artist')
     try:
-        if source == 'top_tracks':
-            # get user's top tracks as seed tracks
-            top_tracks = sp.current_user_top_tracks(limit=20)
-            seed_tracks = [track['id'] for track in random.sample(top_tracks['items'], min(5, len(top_tracks['items'])))]
-        else:
-            # get tracks from the selected playlist as seed tracks
-            playlist_tracks = sp.playlist_tracks(playlist_id)
-            seed_tracks = [track['track']['id'] for track in random.sample(playlist_tracks['items'], min(5, len(playlist_tracks['items'])))]
-        
-        # get recommendations based on seed tracks
-        recommendations = get_recommendations(seed_tracks)
-
-        # Extract track IDs for easier use
-        track_uris = [track['uri'] for track in recommendations]
-
-        return jsonify({'recommendations': recommendations, 'track_uris': track_uris})    # return recommendations as JSON
-    
+        recommendations = get_recommendations(artist_name)
+        return jsonify({'recommendations': recommendations})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500  # return error if an exception occurs
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/create_playlist', methods=['POST'])
-def create_playlist():
-    # redirect to Spotify authorization page
-    if not sp_oauth.validate_token(cache_handler.get_cached_token()):
-        return jsonify({'error': 'Not authenticated'}), 401 # return an error if not authenticated
-
-    # get name of newly created playlist from form data
-    playlist_name = request.form.get('playlist_name', 'Recommended Playlist')
-
-    # get recommended track uris from the form data
-    track_uris = request.form.getlist('track_uris[]')
-
-    # create new playlist for user
+@app.route('/explore_artist/<artist_name>')
+def explore_artist(artist_name):
     try:
-        # get id of user
-        user_id = sp.current_user()['id']
-        # create a new playlist usinpg user's id
-        playlist = sp.user_playlist_create(user_id, playlist_name, public=True)
-
-        if track_uris:
-            # add recommended tracks to new playlist
-            sp.playlist_add_items(playlist['id'], track_uris, position=None)
-
+        artist = network.get_artist(artist_name)
+        top_tracks = artist.get_top_tracks(limit=10)
         
-        # retrieve playlist cover
-        cover = sp.playlist_cover_image(playlist['id'])
-
-        # grab the 640x640 cover image
-        playlist_cover_url = cover[0]['url'] if cover else None
-        return render_template(
-            'playlist.html',
-            playlist = playlist,
-            tracks = sp.playlist_tracks(playlist['id'])['items'],
-            playlist_cover = playlist_cover_url       # pass cover to playlist.html
-        )
-
+        artist_info = {
+            'name': artist.name,
+            'url': artist.get_url(),
+            'listeners': artist.get_listener_count(),
+            'top_tracks': [{
+                'name': track.item.get_name(),
+                'url': track.item.get_url(),
+                'listeners': track.item.get_listener_count()
+            } for track in top_tracks],
+            'tags': [tag.item.name for tag in artist.get_top_tags(limit=5)]
+        }
+        
+        return render_template('artist.html', artist=artist_info)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500  # return error if an exception occurs
-
-
-@app.route('/logout')
-def logout():
-    # clear session and redirect to home page
-    session.clear() # clear session data    
-    return redirect(url_for('home'))    # redirect to home page
+        return f"Error: {str(e)}", 500
 
 if __name__ == "__main__":
-    app.run(debug=True) # run Flask app in debug mode
+    app.run(debug=True)
