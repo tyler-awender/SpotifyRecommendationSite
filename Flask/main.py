@@ -10,8 +10,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)   # set a secret key for session management
 
 # spotify API credentials
-client_id = 'f4968da54d444c79b4f9296ba647de85'
-client_secret = '755f3f594b074d1fb6a7cf8758fd0646'
+client_id = ''
+client_secret = ''
 redirect_uri = 'http://localhost:5000/callback' # redirect URI for Spotify OAuth
 
 # Updated scope to include necessary permissions
